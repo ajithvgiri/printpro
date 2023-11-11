@@ -15,3 +15,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "PrintPro"
 include(":app")
+include(":app:printpulse")
+include(":printpulse")
