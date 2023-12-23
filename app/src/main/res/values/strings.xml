@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">PrintPro</string>
+    <string name="print_using_bt">Print Using BT</string>
 </resources>

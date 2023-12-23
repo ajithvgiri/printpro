@@ -31,74 +31,69 @@ import com.donkeydevelopers.printpulse.utils.BluetoothUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 
-class PrintPulse {
+class PrintPulse(var context: Context) {
     companion object {
         private const val ACTION_USB_PERMISSION = "com.android.example.USB_PERMISSION"
     }
-    var context: Context? = null
-    fun init(context: Context) {
-        this.context = context
-    }
-
 
     /*==============================================================================================
     ======================================BLUETOOTH PART============================================
     ==============================================================================================*/
 
     fun printBluetooth() {
-        context?.let {context ->
-            BluetoothUtils.checkBluetoothPermissions(context,object : OnBluetoothPermissionsGranted {
-                override fun onPermissionsGranted() {
-                    val selectedDevice = getBluetoothDevice()
-                    selectedDevice?.let {
-                        AsyncBluetoothEscPosPrint(
-                            context,
-                            object : AsyncEscPosPrint.OnPrintFinished() {
-                                override fun onError(asyncEscPosPrinter: AsyncEscPosPrinter?, codeException: Int) {
-                                    Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !")
-                                }
-
-                                override fun onSuccess(asyncEscPosPrinter: AsyncEscPosPrinter?) {
-                                    Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !")
-                                }
+        Log.d("TAG","printBluetooth")
+        BluetoothUtils.checkBluetoothPermissions(context,object : OnBluetoothPermissionsGranted {
+            override fun onPermissionsGranted() {
+                Log.d("TAG","onPermissionsGranted")
+                val selectedDevice = getBluetoothDevice()
+                selectedDevice?.let {
+                    AsyncBluetoothEscPosPrint(
+                        context,
+                        object : AsyncEscPosPrint.OnPrintFinished() {
+                            override fun onError(asyncEscPosPrinter: AsyncEscPosPrinter?, codeException: Int) {
+                                Log.e("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : An error occurred !")
                             }
-                        ).execute(getAsyncEscPosPrinter(selectedDevice))
-                    }
-                }
 
-                override fun onRequestBluetoothPermission() {
-                    // Request for permission
+                            override fun onSuccess(asyncEscPosPrinter: AsyncEscPosPrinter?) {
+                                Log.i("Async.OnPrintFinished", "AsyncEscPosPrint.OnPrintFinished : Print is finished !")
+                            }
+                        }
+                    ).execute(getAsyncEscPosPrinter(selectedDevice))
                 }
+            }
 
-                override fun onRequestBluetoothAdminPermission() {
-                    // Request for permission
-                }
+            override fun onRequestBluetoothPermission() {
+                // Request for permission
+            }
 
-                override fun onRequestBluetoothConnectPermission() {
-                    // Request for permission
-                }
+            override fun onRequestBluetoothAdminPermission() {
+                // Request for permission
+            }
 
-                override fun onRequestBluetoothScanPermission() {
-                    // Request for permission
-                }
+            override fun onRequestBluetoothConnectPermission() {
+                // Request for permission
+            }
 
-            })
-        }
+            override fun onRequestBluetoothScanPermission() {
+                // Request for permission
+            }
+
+        })
     }
 
     fun getBluetoothDevice():BluetoothConnection? {
         val bluetoothDevicesList: Array<BluetoothConnection>? = BluetoothPrintersConnections().list
+        Log.d("TAG","getBluetoothDevice ${bluetoothDevicesList?.size}")
         bluetoothDevicesList?.let {
             val items = arrayOfNulls<String>(bluetoothDevicesList.size + 1)
             items[0] = "Default printer"
             var i = 0
             bluetoothDevicesList.forEach {device->
-                context?.let { context ->
-                    if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
-                        // Auto select the Thermal Printer
-                        if (device.device.name.equals("Thermal printer")) {
-                            return device
-                        }
+                if (ActivityCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED) {
+                    // Auto select the Thermal Printer
+                    Log.d("TAG","printer name = ${device.device.name}")
+                    if (device.device.name.equals("BlueTooth Printer")) {
+                        return device
                     }
                 }
             }
@@ -140,30 +135,23 @@ class PrintPulse {
     }
 
     fun printUsb() {
-        context?.let {context->
-            val usbConnection: UsbConnection? = UsbPrintersConnections.selectFirstConnected(context)
-            val usbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager?
-            if (usbConnection == null || usbManager == null) {
-                AlertDialog.Builder(context)
-                    .setTitle("USB Connection")
-                    .setMessage("No USB printer found.")
-                    .show()
-                return
-            }
-            val permissionIntent = PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION),
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
-            )
-
-            val filter = IntentFilter(ACTION_USB_PERMISSION)
-            context.registerReceiver(this.usbReceiver, filter)
-            usbManager.requestPermission(usbConnection.device, permissionIntent)
+        val usbConnection: UsbConnection? = UsbPrintersConnections.selectFirstConnected(context)
+        val usbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager?
+        if (usbConnection == null || usbManager == null) {
+            AlertDialog.Builder(context)
+                .setTitle("USB Connection")
+                .setMessage("No USB printer found.")
+                .show()
+            return
         }
+        val permissionIntent = PendingIntent.getBroadcast(context, 0, Intent(ACTION_USB_PERMISSION),
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0
+        )
+
+        val filter = IntentFilter(ACTION_USB_PERMISSION)
+        context.registerReceiver(this.usbReceiver, filter)
+        usbManager.requestPermission(usbConnection.device, permissionIntent)
     }
-
-    /*==============================================================================================
-    =========================================TCP PART===============================================
-    ==============================================================================================*/
-
 
     /*==============================================================================================
     ===================================ESC/POS PRINTER PART=========================================
@@ -180,7 +168,7 @@ class PrintPulse {
             ${
                 "[C]<img>" + PrinterTextParserImg.bitmapToHexadecimalString(
                     printer,
-                    context?.resources?.getDrawableForDensity(R.drawable.ic_codesap, DisplayMetrics.DENSITY_MEDIUM,null)
+                    context.resources?.getDrawableForDensity(R.drawable.ic_codesap, DisplayMetrics.DENSITY_MEDIUM,null)
                 )
             }</img>
             [L]
